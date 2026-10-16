@@ -7,17 +7,29 @@ hitting the API with many virtual users.
 import os
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 
+# SQLite connections are just file handles, so we don't cap them.
+#
+# The ep01 version had pool_size=20, max_overflow=20 (40 connections max).
+# Under a spike that froze the API for good: FastAPI handles a plain `def`
+# endpoint in two trips through its 40-thread pool (run the endpoint, then
+# validate the response). Between trips, the request still holds its DB
+# connection. Once all 40 connections were parked in requests waiting for a
+# thread, all 40 threads were waiting for a connection. Nobody could move.
+#
+# With Postgres/MySQL you can't go unlimited. There, close the session before
+# returning from the endpoint, or keep the pool bigger than everything that
+# can be in flight at once (and cap that in front of the app).
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False, "timeout": 30}
     if DATABASE_URL.startswith("sqlite")
     else {},
-    pool_size=20,
-    max_overflow=20,
+    poolclass=NullPool if DATABASE_URL.startswith("sqlite") else None,
 )
 
 
