@@ -92,7 +92,7 @@ while true; do ps -o rss= -p $(pgrep -f "fastapi run") | awk '{printf "%d MB\n",
 1. **A VU-based spike test holds back when your API slows down.** Each virtual user waits for its response before starting the next request, so when the API slows down, the load drops. We sized `02-spike-vus.js` for 50 journeys per second and, on my test machine, it delivered about 17. With enough VUs (165 in our test) the VU version froze the API too: what matters is how many requests are in flight at once, and an arrival rate is the honest way to get there. Use an arrival-rate executor (`constant-arrival-rate`, `ramping-arrival-rate`) when the question is "what if more people show up than we can handle?"
 2. **A threshold with no data passes.** When the API froze, logins in the "recovered" phase never answered, k6 had no samples, and the threshold showed `p(95)=0s ✓`. Give requests a realistic timeout (`timeout: '10s'` in `k6/lib/api.js`) so a frozen API turns into failed requests instead of silence.
 3. **The end-of-test summary averages away a soak problem.** Tag requests by phase of the run (`early` / `middle` / `late`) and put the same threshold on the start and the end.
-4. **Stress past the ceiling looked like zero errors.** Nothing failed. Everything just got 20× slower. Always put a latency threshold next to the error-rate threshold.
+4. **Stress past the ceiling looked like zero errors.** Nothing failed. Everything just got several times slower. Always put a latency threshold next to the error-rate threshold.
 
 ## The spike bug (and the fix)
 
